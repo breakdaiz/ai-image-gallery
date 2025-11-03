@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { Button } from "@/components/ui/button";
 import React from "react";
 
@@ -9,12 +8,6 @@ function HomePage() {
       <Button variant={"outline"}>Click Me</Button>
     </div>
   );
-=======
-import React from "react";
-
-function HomePage() {
-  return <div className='p-5'>Home Page</div>;
->>>>>>> 045f369a76754bf22c28dfe15878cbeb98d8ea2a
 }
 
 export default HomePage;

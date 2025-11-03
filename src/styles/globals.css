@@ -3,7 +3,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-<<<<<<< HEAD
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.2686 0 0);
@@ -123,13 +122,6 @@
 }
 
 @theme inline {
-=======
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
->>>>>>> 045f369a76754bf22c28dfe15878cbeb98d8ea2a
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
