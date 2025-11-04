@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import {
   Form,
   FormControl,
@@ -22,6 +23,11 @@ const formSchema = z.object({
 });
 
 export default function HomePage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -92,6 +98,7 @@ export default function HomePage() {
           <p className='text-gray-500'>
             Don't have an account?{" "}
             <Button
+              disabled={loading}
               variant='link'
               className='p-0 h-auto font-semibold'
               onClick={() => router.push("/signup")}
