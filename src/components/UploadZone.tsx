@@ -17,7 +17,15 @@ export default function UploadZone() {
     if (!user) return alert("Please login first.");
     setUploading(true);
 
-    for (const file of acceptedFiles) {
+    // Track overall progress across all files
+    const totalFiles = acceptedFiles.length;
+    setProgress(0);
+
+    for (let idx = 0; idx < acceptedFiles.length; idx++) {
+      const file = acceptedFiles[idx];
+      const fileBase = Math.floor((idx / totalFiles) * 100);
+      // We'll update progress relative to this file's slice (approximate)
+      const fileSlice = Math.floor(100 / totalFiles);
       if (!["image/jpeg", "image/png"].includes(file.type)) {
         alert("Only JPEG/PNG allowed!");
         continue;
@@ -29,6 +37,8 @@ export default function UploadZone() {
           maxWidthOrHeight: 300,
           useWebWorker: true,
         });
+        // update progress: thumbnail generated (~10% of this file)
+        setProgress(fileBase + Math.floor(fileSlice * 0.1));
 
         //  2. Prepare paths
         const fileName = `${Date.now()}-${file.name}`;
@@ -45,6 +55,8 @@ export default function UploadZone() {
           });
 
         if (origErr) throw origErr;
+        // update progress: original uploaded (~60% of this file)
+        setProgress(fileBase + Math.floor(fileSlice * 0.6));
 
         //   Upload thumbnail
         const { error: thumbErr } = await supabase.storage
@@ -52,6 +64,8 @@ export default function UploadZone() {
           .upload(thumbnailPath, thumbnailBlob);
 
         if (thumbErr) throw thumbErr;
+        // update progress: thumbnail uploaded (~80% of this file)
+        setProgress(fileBase + Math.floor(fileSlice * 0.8));
 
         //  Insert record in DB
         const { error: dbErr } = await supabase.from("images").insert([
@@ -65,14 +79,23 @@ export default function UploadZone() {
 
         if (dbErr) throw dbErr;
 
+        // update progress: file complete
+        setProgress(Math.min(100, fileBase + fileSlice));
+
         console.log("✅ Uploaded:", fileName);
       } catch (error: any) {
-        console.error("Upload failed:", error.message);
+        console.error("Upload failed:", error.message || error);
+        // indicate failure for this file by moving progress a bit forward
+        setProgress(Math.min(100, fileBase + Math.floor(fileSlice * 0.9)));
       }
     }
 
-    setUploading(false);
-    setProgress(0);
+    // ensure progress shows complete briefly
+    setProgress(100);
+    setTimeout(() => {
+      setUploading(false);
+      setProgress(0);
+    }, 700);
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });

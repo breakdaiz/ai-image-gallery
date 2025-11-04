@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import UploadZone from "@/components/UploadZone";
 
 export default function DashboardPage() {
   const { signOut } = useAuth();
@@ -25,6 +26,11 @@ export default function DashboardPage() {
         <p className='text-lg text-gray-600 mb-8'>
           Welcome to your personal AI-generated image gallery
         </p>
+
+        <div className='mb-8'>
+          <UploadZone />
+        </div>
+
         <div className='flex gap-4'>
           <Button>Get Started</Button>
           <Button variant='outline' onClick={handleLogout}>
