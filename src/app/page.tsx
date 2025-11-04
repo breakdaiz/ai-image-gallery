@@ -37,6 +37,7 @@ export default function HomePage() {
     },
   });
 
+  // On Submit handler
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { email, password } = values;
     setLoading(true);
@@ -49,6 +50,7 @@ export default function HomePage() {
         setLoading(false);
         return;
       }
+      // Redirect to dashboard if signin is successfull
       router.push("/dashboard");
     } catch (err) {
       setError(String(err));
@@ -116,7 +118,6 @@ export default function HomePage() {
           <p className='text-gray-500'>
             Don't have an account?{" "}
             <Button
-              disabled={loading}
               variant='link'
               className='p-0 h-auto font-semibold'
               onClick={() => router.push("/signup")}
