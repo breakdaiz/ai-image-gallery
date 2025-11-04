@@ -16,7 +16,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
-import { email } from "./../../../node_modules/zod/v4/classic/schemas";
 
 const formSchema = z
   .object({
