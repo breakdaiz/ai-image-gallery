@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import UploadZone from "@/components/UploadZone";
+import ImageGallery from "@/components/ImageGallery";
 
 export default function DashboardPage() {
   const { signOut } = useAuth();
@@ -29,6 +30,11 @@ export default function DashboardPage() {
 
         <div className='mb-8'>
           <UploadZone />
+        </div>
+
+        <div className='mb-8'>
+          <h2 className='text-2xl font-semibold mb-4'>Your Images</h2>
+          <ImageGallery />
         </div>
 
         <div className='flex gap-4'>
