@@ -14,6 +14,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
+import { email } from "./../../../node_modules/zod/v4/classic/schemas";
 
 const formSchema = z
   .object({
@@ -37,11 +40,30 @@ export default function SignupPage() {
     },
   });
 
+  const { signUp } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // TODO: Implement actual signup logic here
-    console.log(values);
-    // Redirect to dashboard after successful signup
-    router.push("/dashboard");
+    const { email, password } = values;
+
+    setLoading(true);
+    const { error } = await signUp(email, password);
+    setLoading(false);
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage(
+        "Signup successful! Check your email to confirm your account."
+      );
+      setEmail("");
+      setPassword("");
+      // Redirect to dashboard after successful signup
+      router.push("/dashboard");
+    }
   }
 
   return (
@@ -100,7 +122,7 @@ export default function SignupPage() {
               )}
             />
 
-            <Button type='submit' className='w-full'>
+            <Button type='submit' disabled={loading} className='w-full '>
               Create Account
             </Button>
           </form>
@@ -109,11 +131,7 @@ export default function SignupPage() {
         <div className='text-center text-sm'>
           <p className='text-gray-500'>
             Already have an account?{" "}
-            <Button
-              variant='link'
-              className='p-0 h-auto font-semibold'
-              onClick={() => router.push("/")}
-            >
+            <Button variant='link' className='p-0 h-auto font-semibold'>
               Sign in
             </Button>
           </p>

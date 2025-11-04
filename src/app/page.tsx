@@ -16,6 +16,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -23,12 +24,11 @@ const formSchema = z.object({
 });
 
 export default function HomePage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
+  const { signIn } = useAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -38,10 +38,24 @@ export default function HomePage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // TODO: Implement actual login logic here
-    console.log(values);
-    // Redirect to dashboard after successful login
-    router.push("/dashboard");
+    const { email, password } = values;
+    setLoading(true);
+    setError("");
+
+    try {
+      const { error: signError } = await signIn(email, password);
+      if (signError) {
+        setError(signError.message ?? String(signError));
+        setLoading(false);
+        return;
+      }
+      router.push("/dashboard");
+    } catch (err) {
+      setError(String(err));
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -88,11 +102,15 @@ export default function HomePage() {
               )}
             />
 
-            <Button type='submit' className='w-full'>
+            <Button type='submit' disabled={loading} className='w-full'>
               Sign in
             </Button>
           </form>
         </Form>
+
+        {error && (
+          <div className='text-center text-sm text-red-600'>{error}</div>
+        )}
 
         <div className='text-center text-sm'>
           <p className='text-gray-500'>
