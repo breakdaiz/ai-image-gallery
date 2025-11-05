@@ -37,14 +37,24 @@ export default function UploadZone() {
           maxWidthOrHeight: 300,
           useWebWorker: true,
         });
+        // Prepare stored filename and user id early so the preview event can include the final name
+        const fileName = `${Date.now()}-${file.name}`;
+        const userId = user.id;
+
         // Create a local preview URL for immediate preview in the gallery
         try {
           const previewUrl = URL.createObjectURL(thumbnailBlob);
           // Dispatch a global event so other components (ImageGallery) can show the preview
+          // Include both the original filename and the final stored filename so the gallery
+          // can match the preview to the persisted DB record.
           if (typeof window !== "undefined") {
             window.dispatchEvent(
               new CustomEvent("image:uploaded", {
-                detail: { previewUrl, filename: file.name },
+                detail: {
+                  previewUrl,
+                  filename: file.name,
+                  storedFilename: fileName,
+                },
               })
             );
           }
@@ -55,8 +65,6 @@ export default function UploadZone() {
         setProgress(fileBase + Math.floor(fileSlice * 0.1));
 
         //  2. Prepare paths
-        const fileName = `${Date.now()}-${file.name}`;
-        const userId = user.id;
         const originalPath = `/${userId}/${fileName}`;
         const thumbnailPath = `/${userId}/${fileName}`;
 

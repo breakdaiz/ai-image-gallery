@@ -17,40 +17,22 @@ export default function ImageGallery() {
   const { user } = useAuth();
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [signedUrls, setSignedUrls] = useState<Record<number, string>>({});
   const [previews, setPreviews] = useState<
-    { previewUrl: string; filename: string; createdAt: number }[]
+    {
+      previewUrl: string;
+      filename: string;
+      storedFilename?: string;
+      createdAt: number;
+    }[]
   >([]);
+  const [previewsClearedAt, setPreviewsClearedAt] = useState<number | null>(
+    null
+  );
 
-  // Fetch a signed URL from the server route and cache it by image id
-  async function fetchSignedUrl(path: string | undefined, id: number) {
-    if (!path) return;
-    try {
-      const normalizedPath = path
-        .replace(/^thumbnails\//, "")
-        .replace(/^\//, "");
-      const res = await fetch("/api/signed-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bucket: "thumbnails",
-          path: normalizedPath,
-          expires: 60 * 60,
-        }),
-      });
-      const json = await res.json();
-      if (json?.url) {
-        setSignedUrls(s => ({ ...s, [id]: json.url }));
-      } else {
-        console.error("Signed URL error", json);
-      }
-    } catch (err) {
-      console.error("Failed to fetch signed URL", err);
-    }
-  }
-
+  // Event listener for preview events from UploadZone — only active while a user is logged in
   useEffect(() => {
-    // Listen for immediate preview events from UploadZone
+    if (!user || typeof window === "undefined") return;
+
     const onPreview = (e: Event) => {
       // @ts-ignore
       const detail = e?.detail;
@@ -58,35 +40,40 @@ export default function ImageGallery() {
         const item = {
           previewUrl: detail.previewUrl,
           filename: detail.filename,
+          storedFilename: detail?.storedFilename as string | undefined,
           createdAt: Date.now(),
         };
+
+        // Ignore previews created before the last clear (e.g. from previous sessions)
+        if (previewsClearedAt && item.createdAt <= previewsClearedAt) return;
 
         setPreviews(prev => {
           // append new preview to front so newest is shown first
           return [item, ...prev];
         });
 
-        // Auto-remove this preview after 15 seconds and revoke object URL
-        setTimeout(() => {
-          setPreviews(prev => {
-            try {
-              URL.revokeObjectURL(item.previewUrl);
-            } catch (err) {}
-            return prev.filter(p => p.previewUrl !== item.previewUrl);
-          });
-        }, 15000);
+        // NOTE: removed auto-remove timer — previews now persist until the app
+        // explicitly removes them (e.g., when a matching DB insert arrives or
+        // when the user logs out). This prevents the preview from disappearing
+        // after a fixed timeout.
       }
     };
-    if (typeof window !== "undefined") {
-      window.addEventListener("image:uploaded", onPreview as EventListener);
-    }
-    if (!user) {
-      setImages([]);
-      setLoading(false);
-      return;
-    }
 
+    window.addEventListener("image:uploaded", onPreview as EventListener);
+
+    return () => {
+      try {
+        window.removeEventListener(
+          "image:uploaded",
+          onPreview as EventListener
+        );
+      } catch (err) {}
+    };
+  }, [user, previewsClearedAt]);
+
+  useEffect(() => {
     let isMounted = true;
+    if (!user) return;
 
     const fetchImages = async () => {
       setLoading(true);
@@ -109,10 +96,7 @@ export default function ImageGallery() {
         setImages(imgs);
         setLoading(false);
 
-        // Pre-fetch signed URLs for thumbnails
-        imgs.forEach((img: ImageRecord) => {
-          fetchSignedUrl(img.thumbnail_path, img.id);
-        });
+        // thumbnails are loaded via public getPublicUrl; no signed URL prefetch
       }
     };
 
@@ -133,9 +117,20 @@ export default function ImageGallery() {
           // Prepend new image to the list
           const newImage = payload.new as ImageRecord;
           setImages(prev => [newImage, ...prev]);
-          console.log("newImage1 ", newImage);
-          fetchSignedUrl(newImage.thumbnail_path, newImage.id);
-          console.log("newImage2 ", newImage);
+          console.log("newImage inserted", newImage);
+
+          // If we have an in-memory preview that matches the stored filename, remove it now
+          setPreviews(prev => {
+            const toRemove = prev.filter(
+              p => p.storedFilename === newImage.filename
+            );
+            toRemove.forEach(p => {
+              try {
+                URL.revokeObjectURL(p.previewUrl);
+              } catch (err) {}
+            });
+            return prev.filter(p => p.storedFilename !== newImage.filename);
+          });
         }
       )
       .subscribe();
@@ -150,14 +145,7 @@ export default function ImageGallery() {
       } catch (err) {
         // ignore
       }
-      // remove preview event listener
-      try {
-        if (typeof window !== "undefined")
-          window.removeEventListener(
-            "image:uploaded",
-            onPreview as EventListener
-          );
-      } catch (err) {}
+      // (preview event listener is handled by the mount-only effect)
     };
   }, [user]);
 
@@ -171,6 +159,23 @@ export default function ImageGallery() {
       });
     };
   }, [previews]);
+
+  // ensure previews and images are cleared when the user logs out
+  useEffect(() => {
+    if (!user) {
+      setImages([]);
+      setLoading(false);
+      setPreviews(prev => {
+        prev.forEach(p => {
+          try {
+            URL.revokeObjectURL(p.previewUrl);
+          } catch (err) {}
+        });
+        return [];
+      });
+      setPreviewsClearedAt(Date.now());
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -220,24 +225,23 @@ export default function ImageGallery() {
         </div>
       )}
 
-      {images.map(img => {
+      {/* remove gallery images */}
+      {/* {images.map(img => {
         const { thumbnail_path } = img;
-        // choose cached signed URL if available
-        const cached = signedUrls[img.id];
 
-        // If the stored path is already a full URL, use it directly (unless we have a signed URL)
         if (!thumbnail_path) return null;
+
+        // If the stored path is already a full URL, use it directly
         if (/^https?:\/\//i.test(thumbnail_path)) {
           const urlDirect = encodeURI(thumbnail_path);
-          const display = cached ?? urlDirect;
           return (
             <div
               key={img.id}
               className='overflow-hidden rounded-md bg-white shadow'
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              
               <img
-                src={display}
+                src={urlDirect}
                 alt={img.filename}
                 className='w-full h-40 object-cover'
               />
@@ -251,24 +255,7 @@ export default function ImageGallery() {
           .replace(/^thumbnails\//, "")
           .replace(/^\//, "");
 
-        // Prefer signed URL if we already fetched it
-        if (cached) {
-          return (
-            <div
-              key={img.id}
-              className='overflow-hidden rounded-md bg-white shadow'
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={cached}
-                alt={img.filename}
-                className='w-full h-40 object-cover'
-              />
-            </div>
-          );
-        }
-
-        // fallback: getPublicUrl (works for public buckets)
+        // Use public URL (works for public buckets)
         const { data } = supabase.storage
           .from("thumbnails")
           .getPublicUrl(normalizedPath);
@@ -276,17 +263,15 @@ export default function ImageGallery() {
         const safeUrl = url ? encodeURI(url) : "";
         if (safeUrl) console.debug("ImageGallery: thumbnail url", safeUrl);
 
-        const display = cached ?? safeUrl;
-
         return (
           <div
             key={img.id}
             className='overflow-hidden rounded-md bg-white shadow'
           >
-            {display ? (
+            {safeUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={display}
+                src={safeUrl}
                 alt={img.filename}
                 className='w-full h-40 object-cover'
               />
@@ -297,7 +282,7 @@ export default function ImageGallery() {
             )}
           </div>
         );
-      })}
+      })} */}
     </div>
   );
 }
