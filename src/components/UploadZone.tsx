@@ -37,14 +37,28 @@ export default function UploadZone() {
           maxWidthOrHeight: 300,
           useWebWorker: true,
         });
+        // Create a local preview URL for immediate preview in the gallery
+        try {
+          const previewUrl = URL.createObjectURL(thumbnailBlob);
+          // Dispatch a global event so other components (ImageGallery) can show the preview
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("image:uploaded", {
+                detail: { previewUrl, filename: file.name },
+              })
+            );
+          }
+        } catch (err) {
+          // ignore preview creation errors
+        }
         // update progress: thumbnail generated (~10% of this file)
         setProgress(fileBase + Math.floor(fileSlice * 0.1));
 
         //  2. Prepare paths
         const fileName = `${Date.now()}-${file.name}`;
         const userId = user.id;
-        const originalPath = `originals/${userId}/${fileName}`;
-        const thumbnailPath = `thumbnails/${userId}/${fileName}`;
+        const originalPath = `/${userId}/${fileName}`;
+        const thumbnailPath = `/${userId}/${fileName}`;
 
         //  3. Upload original file
         const { error: origErr } = await supabase.storage
