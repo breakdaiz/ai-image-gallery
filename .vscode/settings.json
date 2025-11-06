@@ -6,5 +6,6 @@
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "soruce.format": "explicit"
-  }
+  },
+  "deno.enable": true
 }

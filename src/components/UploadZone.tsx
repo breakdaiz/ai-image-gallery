@@ -6,6 +6,8 @@ import supabase from "../lib/supabase-config";
 import { useAuth } from "../context/AuthContext";
 import { UploadCloud } from "lucide-react";
 
+import { analyzeImage } from "../lib/function";
+
 import React from "react";
 
 export default function UploadZone() {
@@ -69,7 +71,7 @@ export default function UploadZone() {
         const thumbnailPath = `/${userId}/${fileName}`;
 
         //  3. Upload original file
-        const { error: origErr } = await supabase.storage
+        const { error: origErr, data } = await supabase.storage
           .from("originals")
           .upload(originalPath, file, {
             cacheControl: "3600",
@@ -105,6 +107,65 @@ export default function UploadZone() {
         setProgress(Math.min(100, fileBase + fileSlice));
 
         console.log("✅ Uploaded:", fileName);
+        data.id;
+
+        const normalizedPath = data.path
+          .replace(/^thumbnails\//, "")
+          .replace(/^\//, "");
+
+        const response = await supabase.storage
+          .from("thumbnails")
+          .getPublicUrl(normalizedPath);
+
+        const publicUrl = response.data.publicUrl;
+
+        console.log("publicURL", response.data.publicUrl);
+
+        const result = await analyzeImage(publicUrl, null);
+        console.log("AI analysis result:", result);
+
+        // The ai-analyze function returns the shape you provided:
+        // { success: true, analysis: { description: string, tags: string[], colors: string[] } }
+        // Extract tags and description directly from result.analysis.
+        const tags = Array.isArray(result?.analysis?.tags)
+          ? result.analysis.tags.map((t: any) => String(t))
+          : [];
+        const description =
+          typeof result?.analysis?.description === "string"
+            ? result.analysis.description
+            : null;
+
+        try {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("image:analyzed", {
+                detail: {
+                  storedFilename: fileName,
+                  tags,
+                  description,
+                },
+              })
+            );
+          }
+        } catch (err) {
+          console.warn("Could not dispatch image:analyzed event", err);
+        }
+        //    data.map(async img => {
+        //   if (!img.thumbnail_path) return;
+
+        //   const { thumbnail_path } = img;
+
+        //   // Invoke the AI analysis function (async, don't await)
+
+        //   const { data } = supabase.storage
+        //     .from("thumbnails")
+        //     .getPublicUrl(normalizedPath);
+
+        //   const url = data?.publicUrl ?? "";
+
+        //   const result = await analyzeImage(url, img.id);
+        //   console.log("AI analysis result:", result);
+        // });
       } catch (error: any) {
         console.error("Upload failed:", error.message || error);
         // indicate failure for this file by moving progress a bit forward

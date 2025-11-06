@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import supabase from "@/lib/supabase-config";
 import { useAuth } from "@/context/AuthContext";
+import { analyzeImage } from "@/lib/function";
 
 type ImageRecord = {
   id: number;
@@ -25,6 +26,9 @@ export default function ImageGallery() {
       createdAt: number;
     }[]
   >([]);
+  const [tagsMap, setTagsMap] = useState<
+    Record<string, { tags: string[]; description?: string | null }>
+  >({});
   const [previewsClearedAt, setPreviewsClearedAt] = useState<number | null>(
     null
   );
@@ -61,11 +65,35 @@ export default function ImageGallery() {
 
     window.addEventListener("image:uploaded", onPreview as EventListener);
 
+    // Listen for AI analysis events (dispatched after upload finishes)
+    const onAnalyzed = (e: Event) => {
+      // @ts-ignore
+      const d = e?.detail;
+      if (!d?.storedFilename) return;
+      const normalizedTags = Array.isArray(d.tags)
+        ? d.tags.map((t: any) => String(t))
+        : typeof d.tags === "string"
+        ? [d.tags]
+        : [];
+      setTagsMap(prev => ({
+        ...prev,
+        [d.storedFilename]: {
+          tags: normalizedTags,
+          description: d.description ?? null,
+        },
+      }));
+    };
+    window.addEventListener("image:analyzed", onAnalyzed as EventListener);
+
     return () => {
       try {
         window.removeEventListener(
           "image:uploaded",
           onPreview as EventListener
+        );
+        window.removeEventListener(
+          "image:analyzed",
+          onAnalyzed as EventListener
         );
       } catch (err) {}
     };
@@ -207,26 +235,55 @@ export default function ImageGallery() {
       {previews.length > 0 && (
         <div className='col-span-2 sm:col-span-3 md:col-span-4 mb-2'>
           <div className='text-sm text-gray-600 mb-2'>Previews</div>
+
           <div className='flex flex-wrap gap-3'>
             {previews.map(p => (
               <div
                 key={p.previewUrl}
-                className='w-40 overflow-hidden rounded-md bg-white shadow'
+                className=' m-auto  w-[300px] overflow-hidden rounded-md bg-white shadow relative'
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={p.previewUrl}
                   alt={p.filename}
-                  className='w-full h-24 object-cover'
+                  className='w-[300px] h-[300px] object-cover '
                 />
               </div>
             ))}
           </div>
+
+          {(() => {
+            const first = previews[0];
+            if (!first) return null;
+            const key = first.storedFilename ?? first.filename;
+            const analysis = tagsMap[key];
+            if (!analysis) return null;
+
+            return (
+              <div className='m-4'>
+                {analysis.description && (
+                  <h1 className='font-bold text-xl'>{analysis.description}</h1>
+                )}
+
+                {Array.isArray(analysis.tags) && analysis.tags.length > 0 && (
+                  <ul className='mt-2 flex flex-wrap gap-2'>
+                    {analysis.tags.map((t: string, i: number) => (
+                      <li
+                        key={i}
+                        className='inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full'
+                      >
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
-      {/* remove gallery images */}
-      {/* {images.map(img => {
+      {images.map(img => {
         const { thumbnail_path } = img;
 
         if (!thumbnail_path) return null;
@@ -234,12 +291,14 @@ export default function ImageGallery() {
         // If the stored path is already a full URL, use it directly
         if (/^https?:\/\//i.test(thumbnail_path)) {
           const urlDirect = encodeURI(thumbnail_path);
+
+          console.log(tagsMap);
           return (
             <div
               key={img.id}
-              className='overflow-hidden rounded-md bg-white shadow'
+              className='overflow-hidden rounded-md bg-white shadow relative'
             >
-              
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={urlDirect}
                 alt={img.filename}
@@ -266,7 +325,7 @@ export default function ImageGallery() {
         return (
           <div
             key={img.id}
-            className='overflow-hidden rounded-md bg-white shadow'
+            className='overflow-hidden rounded-md bg-white shadow relative'
           >
             {safeUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -282,7 +341,7 @@ export default function ImageGallery() {
             )}
           </div>
         );
-      })} */}
+      })}
     </div>
   );
 }
