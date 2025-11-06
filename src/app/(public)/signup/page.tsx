@@ -121,7 +121,11 @@ export default function SignupPage() {
               )}
             />
 
-            <Button type='submit' disabled={loading} className='w-full '>
+            <Button
+              type='submit'
+              disabled={loading}
+              className='w-full cursor-pointer'
+            >
               Create Account
             </Button>
           </form>
@@ -130,7 +134,11 @@ export default function SignupPage() {
         <div className='text-center text-sm'>
           <p className='text-gray-500'>
             Already have an account?{" "}
-            <Button variant='link' className='p-0 h-auto font-semibold'>
+            <Button
+              variant='link'
+              className='p-0 h-auto font-semibold cursor-pointer'
+              onClick={() => router.push("/")}
+            >
               Sign in
             </Button>
           </p>

@@ -104,7 +104,11 @@ export default function HomePage() {
               )}
             />
 
-            <Button type='submit' disabled={loading} className='w-full'>
+            <Button
+              type='submit'
+              disabled={loading}
+              className='w-full cursor-pointer'
+            >
               Sign in
             </Button>
           </form>
@@ -119,7 +123,7 @@ export default function HomePage() {
             Don't have an account?{" "}
             <Button
               variant='link'
-              className='p-0 h-auto font-semibold'
+              className='p-0 h-auto font-semibold cursor-pointer'
               onClick={() => router.push("/signup")}
             >
               Sign up
