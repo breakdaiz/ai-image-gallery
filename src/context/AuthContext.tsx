@@ -1,15 +1,14 @@
-"use client"; // if using Next.js App Router
+"use client";
 
 import {
   createContext,
   useContext,
   useEffect,
   useState,
-  ReactNode,
+  type ReactNode,
 } from "react";
-
 import supabase from "./../lib/supabase-config";
-import { Session, User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: User | null;

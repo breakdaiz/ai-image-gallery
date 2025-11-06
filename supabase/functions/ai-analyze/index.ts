@@ -76,11 +76,10 @@ Deno.serve(async req => {
         }
       );
     }
-    // Ask OpenAI to return strict JSON with description, tags (array), colors (array of hex strings)
     const prompt = `Analyze the image at the following URL and return STRICT JSON only (no surrounding text or markdown):{
-  "description": "...",          // 2-3 sentence detailed description
-  "tags": ["tag1","tag2",...], // 5-10 relevant tags
-  "colors": ["#hex1","#hex2"]  // dominant colors as hex strings
+  "description": "...",
+  "tags": ["tag1","tag2",...],
+  "colors": ["#hex1","#hex2"]
 }
 Image URL: ${imageUrl}
 Respond only with the JSON object in the exact shape above.`;

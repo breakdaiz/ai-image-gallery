@@ -12,7 +12,12 @@ const supabaseKey =
 if (!supabaseUrl || !supabaseKey) {
   // Provide a developer-friendly error that explains what's missing and how to fix it.
   throw new Error(
-    "Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local (or SUPABASE_PROJ_URL / SUPABASE_API_KEY as legacy names). Example:\n"
+    "Missing Supabase environment variables. Please set these in your .env.local:\n" +
+      "  NEXT_PUBLIC_SUPABASE_URL\n" +
+      "  NEXT_PUBLIC_SUPABASE_ANON_KEY\n" +
+      "Or use legacy names:\n" +
+      "  SUPABASE_PROJ_URL\n" +
+      "  SUPABASE_API_KEY"
   );
 }
 

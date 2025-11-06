@@ -8,8 +8,6 @@ import { UploadCloud } from "lucide-react";
 
 import { analyzeImage } from "../lib/function";
 
-import React from "react";
-
 export default function UploadZone() {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
@@ -106,9 +104,6 @@ export default function UploadZone() {
         // update progress: file complete
         setProgress(Math.min(100, fileBase + fileSlice));
 
-        console.log("✅ Uploaded:", fileName);
-        data.id;
-
         const normalizedPath = data.path
           .replace(/^thumbnails\//, "")
           .replace(/^\//, "");
@@ -119,10 +114,7 @@ export default function UploadZone() {
 
         const publicUrl = response.data.publicUrl;
 
-        console.log("publicURL", response.data.publicUrl);
-
         const result = await analyzeImage(publicUrl, null);
-        console.log("AI analysis result:", result);
 
         // The ai-analyze function returns the shape you provided:
         // { success: true, analysis: { description: string, tags: string[], colors: string[] } }
@@ -150,22 +142,6 @@ export default function UploadZone() {
         } catch (err) {
           console.warn("Could not dispatch image:analyzed event", err);
         }
-        //    data.map(async img => {
-        //   if (!img.thumbnail_path) return;
-
-        //   const { thumbnail_path } = img;
-
-        //   // Invoke the AI analysis function (async, don't await)
-
-        //   const { data } = supabase.storage
-        //     .from("thumbnails")
-        //     .getPublicUrl(normalizedPath);
-
-        //   const url = data?.publicUrl ?? "";
-
-        //   const result = await analyzeImage(url, img.id);
-        //   console.log("AI analysis result:", result);
-        // });
       } catch (error: any) {
         console.error("Upload failed:", error.message || error);
         // indicate failure for this file by moving progress a bit forward

@@ -145,7 +145,6 @@ export default function ImageGallery() {
           // Prepend new image to the list
           const newImage = payload.new as ImageRecord;
           setImages(prev => [newImage, ...prev]);
-          console.log("newImage inserted", newImage);
 
           // If we have an in-memory preview that matches the stored filename, remove it now
           setPreviews(prev => {
@@ -291,8 +290,6 @@ export default function ImageGallery() {
         // If the stored path is already a full URL, use it directly
         if (/^https?:\/\//i.test(thumbnail_path)) {
           const urlDirect = encodeURI(thumbnail_path);
-
-          console.log(tagsMap);
           return (
             <div
               key={img.id}
@@ -320,7 +317,6 @@ export default function ImageGallery() {
           .getPublicUrl(normalizedPath);
         const url = data?.publicUrl ?? "";
         const safeUrl = url ? encodeURI(url) : "";
-        if (safeUrl) console.debug("ImageGallery: thumbnail url", safeUrl);
 
         return (
           <div
