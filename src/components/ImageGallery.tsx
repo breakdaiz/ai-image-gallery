@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import supabase from "@/lib/supabase-config";
 import { useAuth } from "@/context/AuthContext";
-import { analyzeImage } from "@/lib/function";
 
 type ImageRecord = {
   id: number;
@@ -12,6 +11,10 @@ type ImageRecord = {
   original_path: string;
   thumbnail_path: string;
   uploaded_at?: string;
+  description?: string | null;
+  tags?: string[];
+  dominant_colors?: string[];
+  analyzed_at?: string;
 };
 
 export default function ImageGallery() {
@@ -107,9 +110,7 @@ export default function ImageGallery() {
       setLoading(true);
       const { data, error } = await supabase
         .from("images")
-        .select(
-          "id, user_id, filename, original_path, thumbnail_path, uploaded_at"
-        )
+        .select("*")
         .eq("user_id", user.id)
         .order("uploaded_at", { ascending: false });
 
@@ -323,18 +324,40 @@ export default function ImageGallery() {
             key={img.id}
             className='overflow-hidden rounded-md bg-white shadow relative'
           >
-            {safeUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={safeUrl}
-                alt={img.filename}
-                className='w-full h-40 object-cover'
-              />
-            ) : (
-              <div className='h-40 flex items-center justify-center text-sm text-gray-500'>
-                No preview
-              </div>
-            )}
+            <div>
+              {safeUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={safeUrl}
+                  alt={img.filename}
+                  className='w-full h-40 object-cover'
+                />
+              ) : (
+                <div className='h-40 flex items-center justify-center text-sm text-gray-500'>
+                  No preview
+                </div>
+              )}
+
+              {/* Show persisted analysis data */}
+              {img.description && (
+                <h1 className='font-bold text-xl mt-2 px-3'>
+                  {img.description}
+                </h1>
+              )}
+
+              {img.tags && img.tags.length > 0 && (
+                <ul className='mt-2 flex flex-wrap gap-2 px-3 pb-3'>
+                  {img.tags.map((tag: string, i: number) => (
+                    <li
+                      key={i}
+                      className='inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full'
+                    >
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         );
       })}

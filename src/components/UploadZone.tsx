@@ -1,12 +1,13 @@
 "use client";
 import { useDropzone } from "react-dropzone";
-import imageCompression from "browser-image-compression";
 import { useState } from "react";
 import supabase from "../lib/supabase-config";
 import { useAuth } from "../context/AuthContext";
 import { UploadCloud } from "lucide-react";
-
-import { analyzeImage } from "../lib/function";
+import { processImage } from "@/lib/utils/imageProcessing";
+import { uploadToStorage } from "@/lib/api/storage";
+import { analyzeImage } from "@/lib/api/analysis";
+import { UploadProgress } from "./ui/UploadProgress";
 
 export default function UploadZone() {
   const { user } = useAuth();
@@ -16,140 +17,89 @@ export default function UploadZone() {
   const onDrop = async (acceptedFiles: File[]) => {
     if (!user) return alert("Please login first.");
     setUploading(true);
-
-    // Track overall progress across all files
-    const totalFiles = acceptedFiles.length;
     setProgress(0);
+
+    const totalFiles = acceptedFiles.length;
 
     for (let idx = 0; idx < acceptedFiles.length; idx++) {
       const file = acceptedFiles[idx];
       const fileBase = Math.floor((idx / totalFiles) * 100);
-      // We'll update progress relative to this file's slice (approximate)
       const fileSlice = Math.floor(100 / totalFiles);
+
       if (!["image/jpeg", "image/png"].includes(file.type)) {
         alert("Only JPEG/PNG allowed!");
         continue;
       }
 
       try {
-        //  1. Generate thumbnail
-        const thumbnailBlob = await imageCompression(file, {
-          maxWidthOrHeight: 300,
-          useWebWorker: true,
-        });
-        // Prepare stored filename and user id early so the preview event can include the final name
-        const fileName = `${Date.now()}-${file.name}`;
-        const userId = user.id;
+        // Process the image (thumbnail and base64)
+        const {
+          thumbnailBlob,
+          base64,
+          fileName,
+          error: processError,
+        } = await processImage(file, progress =>
+          setProgress(fileBase + Math.floor(fileSlice * progress * 0.3))
+        );
 
-        // Create a local preview URL for immediate preview in the gallery
-        try {
-          const previewUrl = URL.createObjectURL(thumbnailBlob);
-          // Dispatch a global event so other components (ImageGallery) can show the preview
-          // Include both the original filename and the final stored filename so the gallery
-          // can match the preview to the persisted DB record.
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(
-              new CustomEvent("image:uploaded", {
-                detail: {
-                  previewUrl,
-                  filename: file.name,
-                  storedFilename: fileName,
-                },
-              })
-            );
-          }
-        } catch (err) {
-          // ignore preview creation errors
+        if (processError || !thumbnailBlob || !base64) throw processError;
+
+        // Create preview
+        const previewUrl = URL.createObjectURL(thumbnailBlob);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("image:uploaded", {
+              detail: {
+                previewUrl,
+                filename: file.name,
+                storedFilename: fileName,
+              },
+            })
+          );
         }
-        // update progress: thumbnail generated (~10% of this file)
-        setProgress(fileBase + Math.floor(fileSlice * 0.1));
 
-        //  2. Prepare paths
-        const originalPath = `/${userId}/${fileName}`;
-        const thumbnailPath = `/${userId}/${fileName}`;
+        // Upload to storage and create DB record
+        const { error: uploadError, dbData } = await uploadToStorage(
+          supabase,
+          file,
+          thumbnailBlob,
+          user.id,
+          fileName,
+          progress =>
+            setProgress(
+              fileBase + Math.floor(fileSlice * (0.3 + progress * 0.5))
+            )
+        );
 
-        //  3. Upload original file
-        const { error: origErr, data } = await supabase.storage
-          .from("originals")
-          .upload(originalPath, file, {
-            cacheControl: "3600",
-            upsert: false,
-          });
+        if (uploadError || !dbData) throw uploadError;
 
-        if (origErr) throw origErr;
-        // update progress: original uploaded (~60% of this file)
-        setProgress(fileBase + Math.floor(fileSlice * 0.6));
+        // Analyze the image
+        const {
+          tags,
+          description,
+          error: analysisError,
+        } = await analyzeImage(base64, dbData.id);
 
-        //   Upload thumbnail
-        const { error: thumbErr } = await supabase.storage
-          .from("thumbnails")
-          .upload(thumbnailPath, thumbnailBlob);
+        if (!analysisError && typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("image:analyzed", {
+              detail: {
+                storedFilename: fileName,
+                tags,
+                description,
+              },
+            })
+          );
+        }
 
-        if (thumbErr) throw thumbErr;
-        // update progress: thumbnail uploaded (~80% of this file)
-        setProgress(fileBase + Math.floor(fileSlice * 0.8));
-
-        //  Insert record in DB
-        const { error: dbErr } = await supabase.from("images").insert([
-          {
-            user_id: userId,
-            filename: fileName,
-            original_path: originalPath,
-            thumbnail_path: thumbnailPath,
-          },
-        ]);
-
-        if (dbErr) throw dbErr;
-
-        // update progress: file complete
         setProgress(Math.min(100, fileBase + fileSlice));
-
-        const normalizedPath = data.path
-          .replace(/^thumbnails\//, "")
-          .replace(/^\//, "");
-
-        const response = await supabase.storage
-          .from("thumbnails")
-          .getPublicUrl(normalizedPath);
-
-        const publicUrl = response.data.publicUrl;
-
-        const result = await analyzeImage(publicUrl, null);
-
-        // The ai-analyze function returns the shape you provided:
-        // { success: true, analysis: { description: string, tags: string[], colors: string[] } }
-        // Extract tags and description directly from result.analysis.
-        const tags = Array.isArray(result?.analysis?.tags)
-          ? result.analysis.tags.map((t: any) => String(t))
-          : [];
-        const description =
-          typeof result?.analysis?.description === "string"
-            ? result.analysis.description
-            : null;
-
-        try {
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(
-              new CustomEvent("image:analyzed", {
-                detail: {
-                  storedFilename: fileName,
-                  tags,
-                  description,
-                },
-              })
-            );
-          }
-        } catch (err) {
-          console.warn("Could not dispatch image:analyzed event", err);
-        }
       } catch (error: any) {
         console.error("Upload failed:", error.message || error);
-        // indicate failure for this file by moving progress a bit forward
         setProgress(Math.min(100, fileBase + Math.floor(fileSlice * 0.9)));
       }
     }
 
-    // ensure progress shows complete briefly
+    // Complete the upload
     setProgress(100);
     setTimeout(() => {
       setUploading(false);
@@ -173,20 +123,7 @@ export default function UploadZone() {
           ? "Drop the images here..."
           : "Drag & drop or click to upload"}
       </p>
-
-      {uploading && (
-        <div className='mt-4 w-full max-w-sm'>
-          <div className='text-center text-sm text-gray-600'>
-            Uploading... {progress}%
-          </div>
-          <div className='w-full bg-gray-200 rounded-full h-2 mt-2'>
-            <div
-              className='bg-blue-600 h-2 rounded-full'
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      )}
+      <UploadProgress progress={progress} uploading={uploading} />
     </div>
   );
 }
