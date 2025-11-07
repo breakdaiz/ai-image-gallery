@@ -21,27 +21,35 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className='container mx-auto px-4 py-8'>
-      <div className='max-w-4xl mx-auto'>
-        <h1 className='text-4xl font-bold mb-6'>AI Image Gallery</h1>
-        <p className='text-lg text-gray-600 mb-8'>
-          Welcome to your personal AI-generated image gallery
-        </p>
-
-        <div className='mb-8'>
-          <UploadZone />
+    <div>
+      {/* header */}
+      <div className='p-5 flex justify-between bg-primary text-center'>
+        <div>
+          <h1 className='text-2xl font-semibold'>AI Image Gallery</h1>
         </div>
+      </div>
 
-        <div className='mb-8'>
-          <h2 className='text-2xl font-semibold mb-4'>Your Images</h2>
-          <ImageGallery />
-        </div>
+      <div className='container mx-auto px-4 py-8'>
+        <div className='max-w-4xl mx-auto'>
+          <h3 className='text-center font-semibold text-lg text-gray-600 mb-8'>
+            Welcome to your personal AI-generated image gallery
+          </h3>
 
-        <div className='flex gap-4'>
-          <Button>Get Started</Button>
-          <Button variant='outline' onClick={handleLogout}>
-            Logout
-          </Button>
+          <div className='mb-8'>
+            <UploadZone />
+          </div>
+
+          <div className='mb-8'>
+            <h2 className='text-2xl font-semibold mb-4'>Your Images</h2>
+            <ImageGallery />
+          </div>
+
+          <div className='flex gap-4'>
+            <Button>Get Started</Button>
+            <Button variant='outline' onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
         </div>
       </div>
     </div>
